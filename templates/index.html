@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>💸EXPENSE TRACKER💸</h1>
+
+        <!-- Add expense form -->
+        <div class="card">
+            <h2>Add Expense</h2>
+            <form action="/add" method="POST">
+               <input type="number" name="amount" placeholder="Amount (₹)" step="10" required>
+               <select name="category">
+                   <option >Food</option>
+                   <option >Transport</option>
+                   <option >Shopping</option>
+                   <option >Entertainment</option>
+                   <option >Other</option>
+               </select>
+               <input type="text" name="description" placeholder="Description (optional)">
+               <button type="submit">+ Add Expenses</button>
+            </form>
+        </div>
+
+        <!-- Chart + summary side by side -->
+        <div class="two-col">
+
+            <!-- Pie chart -->
+            <div class="card">
+                <h2>This Week's Spending</h2>
+                <canvas id="expenseChart" width="300" height="300"></canvas>
+            </div>
+
+            <!-- Weekly Summary -->
+            <div class="card">
+                <h2>Weekly Summary</h2>
+                {% if summary %}
+                    {% set total_week = namespace(val=0) %}
+                    {% for row in summary %}
+                        {% set total_week.val = total_week.val + row['total'] %}
+                    {% endfor %}
+                    <p class="total-label">Total: <strong>₹{{ "%.2f"|format(total_week.val) }}</strong></p>
+                    {% for row in summary %}
+                    <div class="summary-row">
+                        <span>{{ row['category'] }}</span>
+                        <span>{{ "%.2f"|format(row['total']) }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty">No expenses this week yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- AI insights -->
+        <div class="card insights-card">
+            <h2>🤖 AI Insights</h2>
+            <p class="insights-text">{{ insights }}</p>
+        </div>
+        
+        <!-- Expense table -->
+        <div class="card">
+            <h2>All expenses</h2>
+            <form action="/reset" method="POST" onsubmit="return confirm('Delete all expenses? This cannot be undone.')">
+                <button type="submit" class="reset-btn">🗑️ Reset All Data</button>
+            </form>
+            {% if expenses %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense['Date'] }}</td>
+                        <td><span class="badge badge-{{expense['Category']|lower }}">{{ expense['Category'] }}</span></td>
+                        <td>{{ expense['Description'] or '-' }}</td>
+                        <td class="amount">₹{{ "%.2f"|format(expense['Amount']) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p class="empty">No expenses added yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+
+    <!-- Chart Script -->
+    <script>
+        const summaryData = {{ summary | tojson }};
+        if(summaryData && summaryData.length > 0){
+            const labels = summaryData.map(r => r.category);
+            const values = summaryData.map(r => r.total);
+            const colors = ['#6366f1','#14b8a6','#f59e0b','#ec4899','#94a3b8'];
+            new Chart(document.getElementById('expenseChart'), {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: {position: 'bottom'}
+                    }
+                }
+            });
+        } else{
+            document.getElementById('expenseChart').insertAdjacentHTML(
+                'afterend', '<p class="empty">Add expenses to see chart.</p>'
+            );
+            document.getElementById('expenseChart').remove();
+        };
+    </script>
+</body>
+</html>
